@@ -70,10 +70,60 @@ export default function LandingPage() {
     }
   }, []);
 
+  // Inject HeyGen interactive avatar script once after authentication
+  useEffect(() => {
+    if (!authed) return; // wait until authenticated
+    if (document.getElementById('heygen-streaming-embed')) return; // already injected
+    (function (windowRef) {
+      try {
+        const host = "https://labs.heygen.com";
+        const url = host + "/guest/streaming-embed?share=eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9&inIFrame=1";
+        const clientWidth = document.body.clientWidth;
+        const wrapDiv = document.createElement('div');
+        wrapDiv.id = 'heygen-streaming-embed';
+        const container = document.createElement('div');
+        container.id = 'heygen-streaming-container';
+        const stylesheet = document.createElement('style');
+        stylesheet.innerHTML = `\n  #heygen-streaming-embed {\n    z-index: 9999;\n    position: fixed;\n    left: 40px;\n    bottom: 40px;\n    width: 200px;\n    height: 200px;\n    border-radius: 50%;\n    border: 2px solid #fff;\n    box-shadow: 0px 8px 24px 0px rgba(0, 0, 0, 0.12);\n    transition: all linear 0.1s;\n    overflow: hidden;\n\n    opacity: 0;\n    visibility: hidden;\n  }\n  #heygen-streaming-embed.show {\n    opacity: 1;\n    visibility: visible;\n  }\n  #heygen-streaming-embed.expand {\n    ${clientWidth < 540 ? "height: 266px; width: 96%; left: 50%; transform: translateX(-50%);" : "height: 366px; width: calc(366px * 16 / 9);"}\n    border: 0;\n    border-radius: 8px;\n  }\n  #heygen-streaming-container {\n    width: 100%;\n    height: 100%;\n  }\n  #heygen-streaming-container iframe {\n    width: 100%;\n    height: 100%;\n    border: 0;\n  }\n  `;
+        const iframe = document.createElement('iframe');
+        iframe.allowFullscreen = false;
+        iframe.title = 'Streaming Embed';
+        iframe.role = 'dialog';
+        iframe.allow = 'microphone';
+        iframe.src = url;
+        let visible = false;
+        let initial = false;
+        windowRef.addEventListener('message', (e) => {
+          if (e.origin === host && e.data && e.data.type && e.data.type === 'streaming-embed') {
+            if (e.data.action === 'init') { initial = true; wrapDiv.classList.toggle('show', initial); }
+            else if (e.data.action === 'show') { visible = true; wrapDiv.classList.toggle('expand', visible); }
+            else if (e.data.action === 'hide') { visible = false; wrapDiv.classList.toggle('expand', visible); }
+          }
+        });
+        container.appendChild(iframe);
+        wrapDiv.appendChild(stylesheet);
+        wrapDiv.appendChild(container);
+        document.body.appendChild(wrapDiv);
+      } catch (err) {
+        // fail silently
+        // console.warn('Avatar embed failed', err);
+      }
+    })(window);
+  }, [authed]);
+
   if (!authed) return <LoginScreen onAuth={() => setAuthed(true)} />;
 
+  function handleLogout() {
+    localStorage.removeItem('kabam_vg_auth');
+    setAuthed(false);
+  }
+
   return (
-    <div className="bg-white text-gray-900 font-sans">
+    <div className="bg-white text-gray-900 font-sans min-h-screen flex flex-col">
+      <header className="w-full bg-gray-950 text-white flex items-center justify-between px-6 md:px-10 py-4 border-b border-gray-800">
+        <span className="text-sm font-semibold tracking-wide">Kabam Virtual Guard</span>
+        <button onClick={handleLogout} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-md border border-gray-700 transition-colors">Logout</button>
+      </header>
       <style>{`
         .animated-sheen {
           background: radial-gradient(1200px 600px at 10% 10%, rgba(59,130,246,0.08), transparent 60%),
@@ -222,20 +272,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: `
-        (function(){
-          const container = document.getElementById('virtual-guard-embed');
-            if(!container) return;
-            const iframe = document.createElement('iframe');
-            iframe.allow = 'microphone';
-            iframe.title = 'Virtual Guard';
-            iframe.src = '/proxy/avatar';
-            iframe.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-modals');
-            iframe.referrerPolicy = 'no-referrer';
-            iframe.className = 'w-full h-full border-0';
-            container.appendChild(iframe);
-        })();
-      `}} />
+  {/* HeyGen avatar injected via useEffect (see component logic) */}
     </div>
   );
 }
