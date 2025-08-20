@@ -15,7 +15,7 @@ const KabamLandingPage = () => {
           <p>Experience cutting-edge virtual guard technology</p>
         </div>
         <div className="hero-image">
-          <img src="/public/assets/virtual-guard-1.jpg" alt="Virtual Guard Technology" />
+          <img src="/assets/virtual-guard-1.jpg" alt="Virtual Guard Technology" />
         </div>
       </section>
       
@@ -50,9 +50,3 @@ const KabamLandingPage = () => {
 };
 
 export default KabamLandingPage;
-
-/* 
- * NOTE: This is a placeholder component structure.
- * Please replace the content with the specific code from the Google Doc
- * and update the image paths to match the actual asset locations.
- */
