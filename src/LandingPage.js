@@ -70,18 +70,16 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Inject interactive avatar (obfuscated) after auth
+  // Inject interactive avatar (lightly obfuscated) after auth
   useEffect(() => {
     if (!authed) return;
     if (document.getElementById('av-shell')) return; // already injected
     (function (w) {
       try {
-        // Basic obfuscation of remote host & query (assembled at runtime)
-        const b = (s) => typeof atob === 'function' ? atob(s) : Buffer.from(s, 'base64').toString('utf8');
-        const host = b('aHR0cHM6Ly8') + b('bGFicy5oZXlnZW4uY29t'); // https://labs.heygen.com
-        const query = b('L2d1ZXN0L3N0cmVhbWluZy1lbWJlZD9zaGFyZT1leUp4ZFdJNmFHOWpaV0ZqYUc5dVpYUWlPaUFpQmJXbGpkR2x2Ymkxd2IyNWxJbjAuLi4=');
-        // If query decoding fails fallback to original encoded share string (truncated for brevity)
-        const full = host + (query.startsWith('/guest') ? query : "/guest/streaming-embed?share=eyJxdWFsaXR5IjoiaGlnaCI...") + '&inIFrame=1';
+        // Obfuscate host via char codes (still visible in network tab; for stronger privacy use a reverse proxy)
+        const host = String.fromCharCode(104,116,116,112,115,58,47,47) + ['labs','heygen','com'].join('.');
+        const shareParam = 'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9';
+        const full = host + '/guest/streaming-embed?share=' + shareParam + '&inIFrame=1';
         const cw = document.body.clientWidth;
         const shell = document.createElement('div');
         shell.id = 'av-shell';
