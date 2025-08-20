@@ -1,0 +1,12 @@
+# Build artifacts
+build/
+node_modules/
+package-lock.json
+
+# Temporary files
+.DS_Store
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

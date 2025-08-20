@@ -2,7 +2,7 @@
   "name": "worksource-ai-public",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://wizardscurtain.github.io/WorkSource-AI-public",
+  "homepage": "https://kabam.worksource.ai",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
