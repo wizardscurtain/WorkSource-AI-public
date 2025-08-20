@@ -2,7 +2,7 @@
   "name": "worksource-ai-public",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://wizardscurtain.github.io/WorkSource-AI-public",
+  "homepage": "https://kabam.worksource.ai",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
@@ -15,6 +15,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+  "build:docs": "react-scripts build && cp docs/CNAME build/CNAME && rm -rf docs/* && cp -r build/* docs/ && cp docs/index.html docs/404.html",
+  "deploy:docs": "npm run build:docs && git add docs && git commit -m 'Update docs site' || echo 'No changes to commit' && git push",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",

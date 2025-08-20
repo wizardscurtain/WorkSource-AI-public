@@ -1,0 +1,12 @@
+.kabam-landing-page { font-family: Arial, sans-serif; color: #222; }
+.kabam-header { text-align: center; padding: 3rem 1rem; background: linear-gradient(135deg,#0d47a1,#1976d2); color:#fff; }
+.hero-section { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:2rem; padding:2rem 1rem; }
+.hero-content { max-width:420px; }
+.hero-image img { max-width:420px; width:100%; border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,0.3); }
+.features-section { padding:2rem 1rem; background:#f5f7fa; }
+.features-grid { display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin-top:1rem; }
+.feature-card { background:#fff; border-radius:10px; padding:1rem; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.cta-section { text-align:center; padding:3rem 1rem; background:#0d47a1; color:#fff; }
+.cta-button { background:#ff9800; border:none; color:#fff; padding:0.9rem 1.6rem; font-size:1rem; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.2); }
+.cta-button:hover { background:#fb8c00; }
+.kabam-footer { text-align:center; padding:1.5rem; font-size:0.85rem; background:#0d47a1; color:#fff; }
