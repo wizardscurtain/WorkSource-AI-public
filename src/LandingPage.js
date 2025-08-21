@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 function LoginScreen({ onAuth }) {
@@ -63,6 +63,8 @@ function LoginScreen({ onAuth }) {
 
 export default function LandingPage() {
   const [authed, setAuthed] = useState(false);
+  const [avatarReady, setAvatarReady] = useState(false);
+  const [avatarVisible, setAvatarVisible] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('kabam_vg_auth') === '1') {
@@ -70,26 +72,39 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Inject full-screen (section embedded) avatar once after auth
-  useEffect(() => {
-    if (!authed) return;
+  const mountAvatar = useCallback(() => {
     const container = document.getElementById('virtual-guard-embed');
     if (!container || container.dataset.avatarLoaded) return;
     try {
-      const host = String.fromCharCode(104,116,116,112,115,58,47,47) + ['labs','heygen','com'].join('.');
+      const host = 'https://labs.heygen.com';
       const shareParam = 'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9';
       const full = host + '/guest/streaming-embed?share=' + shareParam + '&inIFrame=1';
+      // Warm connection by speculative fetch (no-cors)
+      fetch(full, { mode: 'no-cors' }).catch(()=>{});
       const iframe = document.createElement('iframe');
       iframe.src = full;
       iframe.title = 'Virtual Guard';
       iframe.allow = 'microphone';
-      iframe.referrerPolicy = 'no-referrer';
-      iframe.setAttribute('allowfullscreen', 'false');
-      iframe.className = 'w-full h-full border-0';
+      iframe.loading = 'eager';
+      iframe.className = 'w-full h-full border-0 opacity-0 transition-opacity duration-500';
+      iframe.addEventListener('load', () => {
+        setAvatarReady(true);
+        requestAnimationFrame(()=>{
+          iframe.classList.remove('opacity-0');
+        });
+      });
       container.appendChild(iframe);
       container.dataset.avatarLoaded = '1';
     } catch (_) { /* silent */ }
-  }, [authed]);
+  }, []);
+
+  // Pre-mount hidden iframe right after auth
+  useEffect(() => {
+    if (!authed) return;
+    mountAvatar();
+  }, [authed, mountAvatar]);
+
+  const handleShowAvatar = () => setAvatarVisible(true);
 
   if (!authed) return <LoginScreen onAuth={() => setAuthed(true)} />;
 
@@ -206,9 +221,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Full-screen Avatar Section */}
-      <section className="relative bg-black min-h-screen w-full flex items-stretch" id="avatar-section">
-        <div id="virtual-guard-embed" className="relative flex-1 w-full h-full" />
+      {/* Full-screen Avatar Section with warm-loaded hidden iframe */}
+      <section className="relative bg-black min-h-screen w-full flex items-center justify-center" id="avatar-section">
+        <div className="max-w-5xl w-full mx-auto p-4 flex flex-col gap-6">
+          <h2 className="text-center text-4xl font-bold text-white tracking-tight">Experience WorkSource AI in Action</h2>
+            <p className="text-center text-gray-300 max-w-2xl mx-auto">Watch a live demonstration of interactive intelligent presence.</p>
+            <div className="relative w-full aspect-[4/5] md:aspect-video bg-neutral-900 rounded-lg overflow-hidden flex items-center justify-center border border-neutral-700">
+              {!avatarVisible && (
+                <button onClick={handleShowAvatar} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm font-medium shadow focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-black transition">
+                  Chat Now
+                </button>
+              )}
+              <div id="virtual-guard-embed" className={`absolute inset-0 w-full h-full ${avatarVisible ? 'block' : 'hidden'}`}></div>
+              {avatarVisible && !avatarReady && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-neutral-900/70 to-neutral-900/90 backdrop-blur-sm">
+                  <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-gray-300 tracking-wide font-medium">Connecting...</p>
+                </div>
+              )}
+            </div>
+        </div>
       </section>
 
       {/* In Action */}
