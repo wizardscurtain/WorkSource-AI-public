@@ -17,6 +17,14 @@ import {
   ShoppingCart,
   Package,
   CreditCard,
+  Eye,
+  Megaphone,
+  Headphones,
+  FileText,
+  BookOpen,
+  ShieldAlert,
+  Sliders,
+  Zap,
 } from "lucide-react";
 
 // --- Helper components ---
@@ -36,6 +44,309 @@ const Pill = ({ children }) => (
     {children}
   </span>
 );
+
+// New: toggle pill for overlays
+const TogglePill = ({ active, onClick, children }) => (
+  <button
+    onClick={onClick}
+    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs uppercase tracking-wider transition ${
+      active
+        ? "border-indigo-300/60 bg-indigo-400/20 text-indigo-100"
+        : "border-white/15 bg-white/5 text-white/70 hover:bg-white/10"
+    }`}
+  >
+    <span className={`h-2 w-2 rounded-full ${active ? "bg-indigo-300" : "bg-white/40"}`} />
+    {children}
+  </button>
+);
+
+// --- Store Map Utilities & Data (enriching feature) ---
+function polarToPath(cx, cy, r, a0, a1) {
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const x0 = cx + r * Math.cos(rad(a0));
+  const y0 = cy + r * Math.sin(rad(a0));
+  const x1 = cx + r * Math.cos(rad(a1));
+  const y1 = cy + r * Math.sin(rad(a1));
+  const largeArc = Math.abs(a1 - a0) > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1} Z`;
+}
+
+const defaultStoreZones = {
+  aisles: [
+    { x: 140, y: 120, w: 140, h: 36 },
+    { x: 320, y: 120, w: 140, h: 36 },
+    { x: 500, y: 120, w: 140, h: 36 },
+    { x: 680, y: 120, w: 140, h: 36 },
+    { x: 140, y: 190, w: 140, h: 36 },
+    { x: 320, y: 190, w: 140, h: 36 },
+    { x: 500, y: 190, w: 140, h: 36 },
+    { x: 680, y: 190, w: 140, h: 36 },
+    { x: 140, y: 260, w: 140, h: 36 },
+    { x: 320, y: 260, w: 140, h: 36 },
+    { x: 500, y: 260, w: 140, h: 36 },
+    { x: 680, y: 260, w: 140, h: 36 },
+  ],
+  checkout: [
+    { x: 120, y: 420, w: 120, h: 18, label: "Lane 1" },
+    { x: 260, y: 420, w: 120, h: 18, label: "Lane 2" },
+    { x: 400, y: 420, w: 120, h: 18, label: "Lane 3" },
+    { x: 540, y: 420, w: 120, h: 18, label: "Lane 4" },
+  ],
+  entrance: { x: 60, y: 510, w: 280, h: 24, label: "Main Entrance" },
+  vestibule: { x: 60, y: 480, w: 280, h: 24, label: "Vestibule" },
+  stockroom: { x: 820, y: 80, w: 120, h: 130, label: "Stockroom" },
+  staff: { x: 820, y: 230, w: 120, h: 80, label: "Staff Only" },
+  office: { x: 820, y: 330, w: 120, h: 80, label: "Office" },
+  loading: { x: 820, y: 430, w: 120, h: 80, label: "Loading" },
+  cameras: [
+    { x: 120, y: 80, r: 180, a0: 10, a1: 60, label: "C-01" },
+    { x: 500, y: 80, r: 180, a0: 20, a1: 70, label: "C-02" },
+    { x: 880, y: 60, r: 180, a0: 110, a1: 170, label: "C-03" },
+    { x: 880, y: 540, r: 180, a0: 200, a1: 255, label: "C-04" },
+  ],
+  alerts: [
+    { x: 270, y: 190, level: "med", text: "Item sweep" },
+    { x: 410, y: 420, level: "high", text: "Voided txn" },
+    { x: 860, y: 120, level: "low", text: "Door ajar" },
+  ],
+  patrolPath: [
+    { x: 120, y: 500 },
+    { x: 220, y: 300 },
+    { x: 360, y: 200 },
+    { x: 540, y: 200 },
+    { x: 720, y: 230 },
+    { x: 860, y: 440 },
+    { x: 540, y: 440 },
+    { x: 360, y: 420 },
+    { x: 200, y: 420 },
+    { x: 120, y: 500 },
+  ],
+};
+
+function Legend() {
+  return (
+    <g>
+      <rect x={20} y={20} width={280} height={130} rx={10} ry={10} fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.2)" />
+      <text x={36} y={46} fill="#fff" fontSize={14} fontWeight={600}>Legend</text>
+      <circle cx={36} cy={68} r={6} fill="url(#alertHigh)" stroke="#fca5a5" />
+      <text x={52} y={72} fill="rgba(255,255,255,0.9)" fontSize={12}>Incident</text>
+      <rect x={30} y={84} width={16} height={8} fill="rgba(255,255,255,0.3)" />
+      <text x={52} y={92} fill="rgba(255,255,255,0.9)" fontSize={12}>Shelf/Aisle</text>
+      <path d={polarToPath(180, 40, 16, 310, 20)} fill="rgba(99,102,241,0.35)" stroke="rgba(180,188,255,0.6)" />
+      <text x={200} y={44} fill="rgba(255,255,255,0.9)" fontSize={12}>Camera FOV</text>
+      <path d="M 30 106 L 80 106" stroke="rgba(34,197,94,0.8)" strokeDasharray="4 4" />
+      <text x={90} y={110} fill="rgba(255,255,255,0.9)" fontSize={12}>Patrol route</text>
+    </g>
+  );
+}
+
+function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true, showPatrols = true, showQueues = false }) {
+  const patrolD = zones.patrolPath?.length
+    ? `M ${zones.patrolPath[0].x} ${zones.patrolPath[0].y} ` + zones.patrolPath.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
+    : null;
+  return (
+    <svg viewBox="0 0 1000 600" className="h-full w-full">
+      <defs>
+        <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="rgba(99,102,241,0.15)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.6)" />
+        </linearGradient>
+        <radialGradient id="alertHigh" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="rgba(239,68,68,0.8)" />
+          <stop offset="100%" stopColor="rgba(239,68,68,0.15)" />
+        </radialGradient>
+        <radialGradient id="alertMed" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="rgba(234,179,8,0.7)" />
+          <stop offset="100%" stopColor="rgba(234,179,8,0.15)" />
+        </radialGradient>
+        <radialGradient id="alertLow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="rgba(59,130,246,0.7)" />
+          <stop offset="100%" stopColor="rgba(59,130,246,0.15)" />
+        </radialGradient>
+        <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+        </filter>
+      </defs>
+      <rect x={0} y={0} width={1000} height={600} fill="url(#bgGrad)" />
+      <rect x={60} y={60} width={880} height={480} fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" />
+      {[zones.stockroom, zones.staff, zones.office, zones.loading].map((r, idx) => (
+        <g key={idx}>
+          <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" />
+          <text x={r.x + 10} y={r.y + 22} fill="#fff" fontSize={12}>{r.label}</text>
+        </g>
+      ))}
+      {zones.aisles.map((a, i) => (
+        <rect key={i} x={a.x} y={a.y} width={a.w} height={a.h} fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.3)" />
+      ))}
+      {zones.checkout.map((c, i) => (
+        <g key={i}>
+          <rect x={c.x} y={c.y} width={c.w} height={c.h} fill="rgba(34,197,94,0.25)" stroke="rgba(34,197,94,0.6)" />
+          <text x={c.x + 6} y={c.y - 6} fill="#fff" fontSize={11}>{c.label}</text>
+        </g>
+      ))}
+      <rect x={zones.vestibule.x} y={zones.vestibule.y} width={zones.vestibule.w} height={zones.vestibule.h} fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)" />
+      <text x={zones.vestibule.x + 8} y={zones.vestibule.y - 6} fill="#fff" fontSize={12}>{zones.vestibule.label}</text>
+      <rect x={zones.entrance.x} y={zones.entrance.y} width={zones.entrance.w} height={zones.entrance.h} fill="rgba(59,130,246,0.25)" stroke="rgba(59,130,246,0.6)" />
+      <text x={zones.entrance.x + 8} y={zones.entrance.y - 6} fill="#fff" fontSize={12}>{zones.entrance.label}</text>
+      {showFOV && zones.cameras.map((c, i) => (
+        <g key={i}>
+          <path d={polarToPath(c.x, c.y, c.r, c.a0, c.a1)} fill="rgba(99,102,241,0.35)" stroke="rgba(180,188,255,0.6)" />
+          <circle cx={c.x} cy={c.y} r={4} fill="#c7d2fe" />
+          <text x={c.x + 8} y={c.y - 8} fill="#c7d2fe" fontSize={11}>{c.label}</text>
+        </g>
+      ))}
+      {showPatrols && patrolD && (
+        <path d={patrolD} stroke="rgba(34,197,94,0.8)" strokeDasharray="6 6" fill="none" />
+      )}
+      {showAlerts && zones.alerts.map((a, i) => (
+        <g key={i}>
+          <circle cx={a.x} cy={a.y} r={12} fill={`url(#alert${a.level === "high" ? "High" : a.level === "med" ? "Med" : "Low"})`} filter="url(#soft)" />
+          <circle cx={a.x} cy={a.y} r={4} fill="#fff" />
+          <text x={a.x + 10} y={a.y + 4} fill="#fff" fontSize={11}>{a.text}</text>
+        </g>
+      ))}
+      <Legend />
+    </svg>
+  );
+}
+
+function CoveragePanel() {
+  const [overlays, setOverlays] = useState({ fov: true, alerts: true, patrols: true, queues: false });
+  const toggle = (k) => setOverlays((s) => ({ ...s, [k]: !s[k] }));
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+            <MapPin className="h-5 w-5" />
+            <div className="font-medium">Retail Floor Coverage</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <TogglePill active={overlays.fov} onClick={() => toggle("fov")}><Camera className="h-3.5 w-3.5" /> FOV</TogglePill>
+            <TogglePill active={overlays.alerts} onClick={() => toggle("alerts")}><ShieldAlert className="h-3.5 w-3.5" /> Alerts</TogglePill>
+            <TogglePill active={overlays.patrols} onClick={() => toggle("patrols")}><PersonStanding className="h-3.5 w-3.5" /> Patrol</TogglePill>
+            <Pill>Auto-Redaction Enabled</Pill>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-white/10">
+          <StoreMap showFOV={overlays.fov} showAlerts={overlays.alerts} showPatrols={overlays.patrols} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HowItWorksStepper() {
+  const steps = [
+    { icon: Eye, title: "Always-on & Approachable", desc: "Virtual Guard watches continuously; if addressed, responds helpfully via mic/speaker." },
+    { icon: Zap, title: "Smart+ Triggers", desc: "Robot sensors + policies trigger engagement when risk conditions are met." },
+    { icon: Megaphone, title: "Engage & Deter", desc: "Talk-down scripts and on-robot presence aim to de-escalate and deter." },
+    { icon: Headphones, title: "Escalate to SOC", desc: "If uncertain, the AI calls the SOC, streams context, enables human speak-through." },
+    { icon: FileText, title: "Record & Audit", desc: "All comms & decisions stored; incidents exportable with chain-of-custody." },
+  ];
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <div className="flex items-center gap-2 text-white">
+          <BookOpen className="h-5 w-5" />
+          <div className="font-medium">How It Works</div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-5">
+          {steps.map((s, i) => (
+            <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/10">
+                <s.icon className="h-4 w-4" />
+              </div>
+              <div className="text-sm font-medium text-white">{s.title}</div>
+              <div className="mt-1 text-xs text-white/70">{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RAGPanel() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2 text-white">
+          <Sliders className="h-5 w-5" />
+          <div className="font-medium">SOPs & RAG Intelligence</div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-2 text-sm text-white/80">
+          <li>• Curated procedures (policy, legal, de-escalation) drive responses.</li>
+          <li>• Retrieval-Augmented Generation selects best-fit procedure per context.</li>
+          <li>• Escalation thresholds & tone adjustable per site policy.</li>
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EscalationMatrix() {
+  const items = [
+    { icon: Megaphone, title: "Talk-down", body: "Immediate verbal deterrence via robot audio/LED presence." },
+    { icon: PhoneCall, title: "SOC Call", body: "AI calls SOC when operator guidance required." },
+    { icon: Headphones, title: "Speak-through", body: "SOC can speak through avatar in real time." },
+    { icon: ShieldAlert, title: "External Escalation", body: "Escalate per policy (store radio, regional SOC, law enforcement)." },
+  ];
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2 text-white">
+          <ShieldAlert className="h-5 w-5" />
+          <div className="font-medium">Escalation Matrix</div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {items.map((it, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/10">
+                <it.icon className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-white">{it.title}</div>
+                <div className="text-xs text-white/70">{it.body}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TrustControls() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2 text-white">
+          <ShieldCheck className="h-5 w-5" />
+          <div className="font-medium">Trust & Controls</div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Pill>Redaction: On</Pill>
+          <Pill>Recording: Stored</Pill>
+          <Pill>Retention: Configurable</Pill>
+          <Pill>FR: Customer Policy</Pill>
+          <Pill>Audit Log: Enabled</Pill>
+        </div>
+        <div className="mt-3 text-xs text-white/60">Face recognition & retention windows are customer‑policy decisions managed by KABAM.</div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // --- Mock data ---
 const incidents = [
@@ -197,27 +508,9 @@ const KPIRow = () => (
 const MainGrid = () => (
   <div className="mx-auto mt-6 max-w-7xl px-6">
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white">
-              <MapPin className="h-5 w-5" />
-              <div className="font-medium">Retail Floor Coverage</div>
-            </div>
-            <Pill>Auto-Redaction Enabled</Pill>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-white/10">
-            <div className="absolute inset-0 bg-[conic-gradient(at_top_left,rgba(99,102,241,0.25),rgba(79,70,229,0.2),transparent_60%)]" />
-            <div className="absolute inset-0 grid place-items-center">
-              <div className="rounded-xl border border-white/15 bg-black/40 px-4 py-2 text-sm text-white/80">
-                Store map placeholder — no third-party leakage
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Enhanced coverage panel with interactive overlays */}
+      <CoveragePanel />
+      {/* Incident feed */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2 text-white">
@@ -239,6 +532,7 @@ const MainGrid = () => (
           </div>
         </CardContent>
       </Card>
+      {/* Patrols */}
       <Card className="lg:col-span-2">
         <CardHeader>
           <div className="flex items-center gap-2 text-white">
@@ -258,6 +552,7 @@ const MainGrid = () => (
           </div>
         </CardContent>
       </Card>
+      {/* Quick actions */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2 text-white">
@@ -273,6 +568,11 @@ const MainGrid = () => (
           </div>
         </CardContent>
       </Card>
+      {/* New enrichment panels */}
+      <HowItWorksStepper />
+      <RAGPanel />
+      <EscalationMatrix />
+      <TrustControls />
     </div>
   </div>
 );
