@@ -292,6 +292,14 @@ function HowItWorksPanel() {
   const [expandAll, setExpandAll] = useState(false);
   const [hover, setHover] = useState(null);
   const toShow = expandAll ? steps : [steps[active]];
+  const handleKey = (e) => {
+    if (expandAll) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => (a+1)%steps.length); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => (a-1+steps.length)%steps.length); }
+    if (e.key === 'Home') { e.preventDefault(); setActive(0); }
+    if (e.key === 'End') { e.preventDefault(); setActive(steps.length-1); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandAll(v=>!v); }
+  };
   return (
     <Card className="lg:col-span-3">
       <CardHeader>
@@ -304,13 +312,13 @@ function HowItWorksPanel() {
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
-          <div className="relative space-y-2">
+          <div className="relative space-y-2" role="listbox" aria-label="How it works steps" tabIndex={0} onKeyDown={handleKey}>
             {steps.map((s,i)=>{
               const isActive = i===active && !expandAll;
               const isHover = hover===i && !expandAll;
               const showHL = isActive || isHover;
               return (
-                <button key={i} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onClick={()=>{setActive(i); setExpandAll(false);}} className="relative w-full overflow-hidden rounded-xl border border-white/10 p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60" data-active={isActive || undefined}>
+                <button key={i} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onClick={()=>{setActive(i); setExpandAll(false);}} className="relative w-full overflow-hidden rounded-xl border border-white/10 p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60" data-active={isActive || undefined} aria-current={isActive ? 'true':undefined}>
                   {showHL && <motion.div layoutId="howItWorksHL" className="absolute inset-0 rounded-xl bg-indigo-600/85" transition={{ type:'spring', stiffness:420, damping:34 }} />}
                   {!showHL && <motion.div className="absolute inset-0 rounded-xl bg-white/10" initial={{opacity:0}} whileHover={{opacity:1}} transition={{duration:0.2}} />}
                   <div className="relative z-10 flex items-center gap-2">
@@ -376,7 +384,7 @@ function EscalationMatrix() {
       <CardContent>
         <div className="space-y-3">
           {items.map((it, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <motion.div key={i} whileHover={{ backgroundColor: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.25)' }} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3 transition">
               <div className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/10">
                 <it.icon className="h-4 w-4" />
               </div>
@@ -384,7 +392,7 @@ function EscalationMatrix() {
                 <div className="text-sm font-medium text-white">{it.title}</div>
                 <div className="text-xs text-white/70">{it.body}</div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </CardContent>
@@ -410,6 +418,65 @@ function TrustControls() {
           <Pill>Audit Log: Enabled</Pill>
         </div>
         <div className="mt-3 text-xs text-white/60">Face recognition & retention windows are customer‑policy decisions managed by KABAM.</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Evidence reel component (placeholder thumbnails / export action)
+function EvidenceReel() {
+  const clips = [
+    { id: 'clip-1', label: 'Checkout voided txn', ts: '18:36', risk: 'Med' },
+    { id: 'clip-2', label: 'Aisle bulk sweep', ts: '18:42', risk: 'High' },
+    { id: 'clip-3', label: 'Back door ajar', ts: '18:21', risk: 'Low' },
+  ];
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between text-white">
+          <div className="flex items-center gap-2"><FileText className="h-5 w-5" /><span className="font-medium">Evidence Reel</span></div>
+          <button className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10">Export All</button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {clips.map(c=> (
+            <div key={c.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-14 rounded-md bg-gradient-to-br from-indigo-500/40 to-indigo-900/20 outline outline-1 outline-white/10" />
+                <div>
+                  <div className="font-medium text-white/90">{c.label}</div>
+                  <div className="text-[10px] text-white/50">{c.ts} • Risk: {c.risk}</div>
+                </div>
+              </div>
+              <button className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/70 hover:bg-white/10">Open</button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PolicySummary() {
+  const items = [
+    { k: 'Redaction', v: 'Enabled (faces & badges)' },
+    { k: 'Retention', v: '30d video / 365d logs' },
+    { k: 'Escalation SLA', v: '<120s SOC engage' },
+    { k: 'FR Policy', v: 'Customer opt-in zones' },
+  ];
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2 text-white">
+          <ShieldCheck className="h-5 w-5" />
+          <div className="font-medium">Policy Summary</div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-2 text-xs text-white/80">
+          {items.map(i=> <li key={i.k} className="flex justify-between"><span className="text-white/60">{i.k}</span><span>{i.v}</span></li>)}
+        </ul>
       </CardContent>
     </Card>
   );
@@ -444,18 +511,19 @@ const patrols = [
 ];
 
 const QuickAction = ({ icon: Icon, title, subtitle }) => (
-  <button className="group flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:bg-white/10">
+  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} className="group flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-400/50">
     <div className="flex items-center gap-3">
-      <div className="rounded-lg border border-white/10 bg-white/10 p-2">
+      <div className="relative rounded-lg border border-white/10 bg-white/10 p-2">
         <Icon className="h-4 w-4" />
+        <motion.span aria-hidden className="pointer-events-none absolute inset-0 rounded-lg bg-white/20 opacity-0" whileHover={{ opacity: 0.15 }} />
       </div>
       <div>
-        <div className="text-sm font-medium">{title}</div>
-        <div className="text-xs text-white/70">{subtitle}</div>
+        <div className="text-sm font-medium tracking-wide text-white/90">{title}</div>
+        <div className="text-xs text-white/60">{subtitle}</div>
       </div>
     </div>
-    <ChevronRight className="h-4 w-4 opacity-60 transition group-hover:translate-x-0.5" />
-  </button>
+    <ChevronRight className="h-4 w-4 opacity-50 transition group-hover:translate-x-0.5 group-hover:opacity-80" />
+  </motion.button>
 );
 
 // --- Enhanced animated background (aurora + texture) ---
@@ -638,6 +706,8 @@ const MainGrid = () => (
       <RAGPanel />
       <EscalationMatrix />
       <TrustControls />
+  <EvidenceReel />
+  <PolicySummary />
     </div>
   </div>
 );
