@@ -27,36 +27,56 @@ import {
   Zap,
 } from "lucide-react";
 
-// --- Helper components ---
+// --- Helper components (enhanced styling / motion hover washes) ---
 const Card = ({ className = "", children }) => (
-  <div className={`rounded-2xl shadow-xl border border-white/10 bg-white/5 backdrop-blur-xl ${className}`}>
+  <div className={`group relative overflow-hidden rounded-2xl shadow-xl border border-white/10 bg-white/5 backdrop-blur-xl transition duration-300 hover:border-white/20 ${className}`}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      whileHover={{ opacity: 0.06 }}
+      transition={{ duration: 0.25 }}
+      className="pointer-events-none absolute inset-0 bg-white"
+    />
     {children}
   </div>
 );
 const CardHeader = ({ children, className = "" }) => (
-  <div className={`px-6 pt-6 pb-2 ${className}`}>{children}</div>
+  <div className={`relative z-10 px-6 pt-6 pb-2 ${className}`}>{children}</div>
 );
 const CardContent = ({ children, className = "" }) => (
-  <div className={`px-6 pb-6 ${className}`}>{children}</div>
+  <div className={`relative z-10 px-6 pb-6 ${className}`}>{children}</div>
 );
 const Pill = ({ children }) => (
-  <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-wider text-white/80">
+  <span className="relative inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-wider text-white/80">
     {children}
   </span>
 );
 
-// New: toggle pill for overlays
+// Animated TogglePill with shared highlight
 const TogglePill = ({ active, onClick, children }) => (
   <button
     onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs uppercase tracking-wider transition ${
-      active
-        ? "border-indigo-300/60 bg-indigo-400/20 text-indigo-100"
-        : "border-white/15 bg-white/5 text-white/70 hover:bg-white/10"
+    aria-pressed={active}
+    className={`relative inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs uppercase tracking-wider transition ${
+      active ? "border-indigo-300/60 text-white" : "border-white/15 text-white/80 hover:text-white"
     }`}
   >
-    <span className={`h-2 w-2 rounded-full ${active ? "bg-indigo-300" : "bg-white/40"}`} />
-    {children}
+    {active && (
+      <motion.span
+        layoutId="togglePillHL"
+        className="absolute inset-0 rounded-full bg-indigo-500/80"
+        transition={{ type: "spring", stiffness: 420, damping: 32 }}
+      />
+    )}
+    {!active && (
+      <motion.span
+        className="absolute inset-0 rounded-full bg-white/10"
+        initial={{ opacity: 0 }}
+        whileHover={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+      />
+    )}
+    <span className="relative z-10 h-2 w-2 rounded-full bg-current/70" />
+    <span className="relative z-10">{children}</span>
   </button>
 );
 
@@ -182,6 +202,7 @@ function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true
         <g key={i}>
           <rect x={c.x} y={c.y} width={c.w} height={c.h} fill="rgba(34,197,94,0.25)" stroke="rgba(34,197,94,0.6)" />
           <text x={c.x + 6} y={c.y - 6} fill="#fff" fontSize={11}>{c.label}</text>
+          {showQueues && <rect x={c.x} y={c.y - 38} width={c.w} height={6} fill="rgba(234,179,8,0.45)" />}
         </g>
       ))}
       <rect x={zones.vestibule.x} y={zones.vestibule.y} width={zones.vestibule.w} height={zones.vestibule.h} fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)" />
@@ -222,49 +243,76 @@ function CoveragePanel() {
             <div className="font-medium">Retail Floor Coverage</div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <TogglePill active={overlays.fov} onClick={() => toggle("fov")}><Camera className="h-3.5 w-3.5" /> FOV</TogglePill>
-            <TogglePill active={overlays.alerts} onClick={() => toggle("alerts")}><ShieldAlert className="h-3.5 w-3.5" /> Alerts</TogglePill>
-            <TogglePill active={overlays.patrols} onClick={() => toggle("patrols")}><PersonStanding className="h-3.5 w-3.5" /> Patrol</TogglePill>
+            <TogglePill active={overlays.fov} onClick={() => toggle('fov')}><Camera className="h-3.5 w-3.5" /> FOV</TogglePill>
+            <TogglePill active={overlays.alerts} onClick={() => toggle('alerts')}><ShieldAlert className="h-3.5 w-3.5" /> Alerts</TogglePill>
+            <TogglePill active={overlays.patrols} onClick={() => toggle('patrols')}><PersonStanding className="h-3.5 w-3.5" /> Patrol</TogglePill>
+            <TogglePill active={overlays.queues} onClick={() => toggle('queues')}><ShoppingCart className="h-3.5 w-3.5" /> Queues</TogglePill>
             <Pill>Auto-Redaction Enabled</Pill>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-white/10">
-          <StoreMap showFOV={overlays.fov} showAlerts={overlays.alerts} showPatrols={overlays.patrols} />
+          <StoreMap showFOV={overlays.fov} showAlerts={overlays.alerts} showPatrols={overlays.patrols} showQueues={overlays.queues} />
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function HowItWorksStepper() {
+// Expanded, interactive panel version
+function HowItWorksPanel() {
   const steps = [
-    { icon: Eye, title: "Always-on & Approachable", desc: "Virtual Guard watches continuously; if addressed, responds helpfully via mic/speaker." },
-    { icon: Zap, title: "Smart+ Triggers", desc: "Robot sensors + policies trigger engagement when risk conditions are met." },
-    { icon: Megaphone, title: "Engage & Deter", desc: "Talk-down scripts and on-robot presence aim to de-escalate and deter." },
-    { icon: Headphones, title: "Escalate to SOC", desc: "If uncertain, the AI calls the SOC, streams context, enables human speak-through." },
-    { icon: FileText, title: "Record & Audit", desc: "All comms & decisions stored; incidents exportable with chain-of-custody." },
+    { icon: Eye, title: "Always-on & Approachable", desc: "Virtual Guard watches continuously; if addressed, responds helpfully via mic/speaker.", details: ["24/7 listening with on-robot mic/speaker","Polite, customer-safe tone by default","No action? Continues passive observation"] },
+    { icon: Zap, title: "Smart+ Triggers", desc: "Robot sensors + policies trigger engagement when risk conditions are met.", details: ["Queue length, shelf-sweep, back-door propped, restricted area","Policies configurable per store/zone/schedule","Multi-signal confirmation to reduce false alarms"] },
+    { icon: Megaphone, title: "Engage & Deter", desc: "Talk-down scripts and on-robot presence aim to de-escalate and deter.", details: ["Scripted talk-down aligned to store policy","LED/audio presence cues; privacy-first redaction","Escalation if compliance not achieved"] },
+    { icon: Headphones, title: "SOC Fallback & Speak-through", desc: "If uncertain, AI calls SOC, streams context, enables speak-through.", details: ["Automatic call to SOC with live stream","Operator can direct or speak through avatar","Clear handoff / audit trail of human involvement"] },
+    { icon: FileText, title: "Record & Audit", desc: "All comms and decisions stored; incidents exportable.", details: ["All comms logged; clips time-stamped","Export to PDF/video with redaction","Retention windows configurable by KABAM"] },
   ];
+  const [active, setActive] = useState(0);
+  const [expandAll, setExpandAll] = useState(false);
+  const [hover, setHover] = useState(null);
+  const toShow = expandAll ? steps : [steps[active]];
   return (
-    <Card className="lg:col-span-2">
+    <Card className="lg:col-span-3">
       <CardHeader>
-        <div className="flex items-center gap-2 text-white">
-          <BookOpen className="h-5 w-5" />
-          <div className="font-medium">How It Works</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-white"><BookOpen className="h-5 w-5" /><div className="font-medium">How It Works</div></div>
+          <div className="flex items-center gap-2">
+            <TogglePill active={expandAll} onClick={() => setExpandAll(v=>!v)}>Expand All</TogglePill>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-5">
-          {steps.map((s, i) => (
-            <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/10">
-                <s.icon className="h-4 w-4" />
-              </div>
-              <div className="text-sm font-medium text-white">{s.title}</div>
-              <div className="mt-1 text-xs text-white/70">{s.desc}</div>
-            </div>
-          ))}
+        <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
+          <div className="relative space-y-2">
+            {steps.map((s,i)=>{
+              const isActive = i===active && !expandAll;
+              const isHover = hover===i && !expandAll;
+              const showHL = isActive || isHover;
+              return (
+                <button key={i} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)} onClick={()=>{setActive(i); setExpandAll(false);}} className="relative w-full overflow-hidden rounded-xl border border-white/10 p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-indigo-400/60" data-active={isActive || undefined}>
+                  {showHL && <motion.div layoutId="howItWorksHL" className="absolute inset-0 rounded-xl bg-indigo-600/85" transition={{ type:'spring', stiffness:420, damping:34 }} />}
+                  {!showHL && <motion.div className="absolute inset-0 rounded-xl bg-white/10" initial={{opacity:0}} whileHover={{opacity:1}} transition={{duration:0.2}} />}
+                  <div className="relative z-10 flex items-center gap-2">
+                    <div className={`grid h-7 w-7 place-items-center rounded-lg border ${isActive? 'border-white/40 bg-white/20':'border-white/10 bg-white/10'}`}><span className="text-xs font-semibold">{i+1}</span></div>
+                    <s.icon className="h-4 w-4" />
+                    <div className="text-sm font-medium text-white">{s.title}</div>
+                  </div>
+                  <div className="relative z-10 mt-1 line-clamp-2 text-xs text-white/80">{s.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="space-y-4">
+            {toShow.map((s,i)=>(
+              <motion.div key={i} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.25}} className="rounded-xl border border-white/10 bg-white/5 p-5">
+                <div className="mb-2 flex items-center gap-2"><s.icon className="h-4 w-4" /><div className="text-base font-semibold text-white">{s.title}</div></div>
+                <div className="text-sm text-white/80">{s.desc}</div>
+                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-white/80">{s.details.map((d,idx)=><li key={idx}>{d}</li>)}</ul>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -391,11 +439,11 @@ const QuickAction = ({ icon: Icon, title, subtitle }) => (
   </button>
 );
 
-// --- Animated background ---
+// --- Enhanced animated background (aurora + texture) ---
 const Backdrop = () => (
   <div className="absolute inset-0 -z-10 overflow-hidden">
-    <div className="absolute inset-0 bg-[radial-gradient(75%_50%_at_50%_0%,rgba(72,78,255,0.35),rgba(0,0,0,0.9))]" />
-    <svg className="absolute inset-0 h-full w-full opacity-25" xmlns="http://www.w3.org/2000/svg">
+    <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,rgba(72,78,255,0.35),rgba(8,10,24,1))]" />
+    <svg className="absolute inset-0 h-full w-full opacity-20" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
           <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
@@ -403,18 +451,12 @@ const Backdrop = () => (
       </defs>
       <rect width="100%" height="100%" fill="url(#grid)" />
     </svg>
-    <motion.div
-      initial={{ opacity: 0.6, x: -80, y: -40 }}
-      animate={{ opacity: 0.9, x: 0, y: 0 }}
-      transition={{ duration: 2.2, ease: "easeOut" }}
-      className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl"
-    />
-    <motion.div
-      initial={{ opacity: 0.4, x: 80, y: 40 }}
-      animate={{ opacity: 0.75, x: 0, y: 0 }}
-      transition={{ duration: 2.2, ease: "easeOut", delay: 0.2 }}
-      className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-400/20 blur-3xl"
-    />
+    <motion.div initial={{ opacity: 0.6, x: -120, y: -40 }} animate={{ opacity: 0.9, x: -20, y: 0 }} transition={{ duration: 2.2, ease: "easeOut" }} className="absolute -top-40 -left-40 h-96 w-[36rem] rotate-6 rounded-full bg-gradient-to-tr from-fuchsia-400/25 via-indigo-400/20 to-cyan-300/20 blur-3xl" />
+    <motion.div initial={{ opacity: 0.4, x: 120, y: 40 }} animate={{ opacity: 0.75, x: 40, y: 0 }} transition={{ duration: 2.2, ease: "easeOut", delay: 0.2 }} className="absolute -bottom-40 -right-40 h-96 w-[36rem] -rotate-6 rounded-full bg-gradient-to-tr from-emerald-400/25 via-sky-400/20 to-violet-300/20 blur-3xl" />
+    <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12] mix-blend-soft-light" xmlns="http://www.w3.org/2000/svg">
+      <filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch" /></filter>
+      <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+    </svg>
   </div>
 );
 
@@ -568,8 +610,8 @@ const MainGrid = () => (
           </div>
         </CardContent>
       </Card>
-      {/* New enrichment panels */}
-      <HowItWorksStepper />
+  {/* New enrichment panels */}
+  <HowItWorksPanel />
       <RAGPanel />
       <EscalationMatrix />
       <TrustControls />
