@@ -70,45 +70,25 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Inject interactive avatar (lightly obfuscated) after auth
+  // Inject full-screen (section embedded) avatar once after auth
   useEffect(() => {
     if (!authed) return;
-    if (document.getElementById('av-shell')) return; // already injected
-    (function (w) {
-      try {
-        // Obfuscate host via char codes (still visible in network tab; for stronger privacy use a reverse proxy)
-        const host = String.fromCharCode(104,116,116,112,115,58,47,47) + ['labs','heygen','com'].join('.');
-        const shareParam = 'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9';
-        const full = host + '/guest/streaming-embed?share=' + shareParam + '&inIFrame=1';
-        const cw = document.body.clientWidth;
-        const shell = document.createElement('div');
-        shell.id = 'av-shell';
-        const inner = document.createElement('div');
-        inner.id = 'av-container';
-        const style = document.createElement('style');
-        style.textContent = `#av-shell{z-index:9999;position:fixed;left:40px;bottom:40px;width:200px;height:200px;border-radius:50%;border:2px solid #fff;box-shadow:0 8px 24px rgba(0,0,0,.12);transition:all .1s linear;overflow:hidden;opacity:0;visibility:hidden}#av-shell.on{opacity:1;visibility:visible}#av-shell.exp{${cw < 540 ? 'height:266px;width:96%;left:50%;transform:translateX(-50%);' : 'height:366px;width:calc(366px * 16 / 9);'}border:0;border-radius:8px}#av-container, #av-container iframe{width:100%;height:100%;border:0}`;
-        const frame = document.createElement('iframe');
-        frame.allowFullscreen = false;
-        frame.title = 'Assistant';
-        frame.role = 'dialog';
-        frame.allow = 'microphone';
-        frame.src = full;
-        let showing = false, ready = false;
-        w.addEventListener('message', (e) => {
-          if (e.origin === host && e.data && e.data.type === 'streaming-embed') {
-            if (e.data.action === 'init') { ready = true; shell.classList.toggle('on', ready); }
-            else if (e.data.action === 'show') { showing = true; shell.classList.toggle('exp', showing); }
-            else if (e.data.action === 'hide') { showing = false; shell.classList.toggle('exp', showing); }
-          }
-        });
-        inner.appendChild(frame);
-        shell.appendChild(style);
-        shell.appendChild(inner);
-        document.body.appendChild(shell);
-      } catch (_) {
-        /* silent */
-      }
-    })(window);
+    const container = document.getElementById('virtual-guard-embed');
+    if (!container || container.dataset.avatarLoaded) return;
+    try {
+      const host = String.fromCharCode(104,116,116,112,115,58,47,47) + ['labs','heygen','com'].join('.');
+      const shareParam = 'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9';
+      const full = host + '/guest/streaming-embed?share=' + shareParam + '&inIFrame=1';
+      const iframe = document.createElement('iframe');
+      iframe.src = full;
+      iframe.title = 'Virtual Guard';
+      iframe.allow = 'microphone';
+      iframe.referrerPolicy = 'no-referrer';
+      iframe.setAttribute('allowfullscreen', 'false');
+      iframe.className = 'w-full h-full border-0';
+      container.appendChild(iframe);
+      container.dataset.avatarLoaded = '1';
+    } catch (_) { /* silent */ }
   }, [authed]);
 
   if (!authed) return <LoginScreen onAuth={() => setAuthed(true)} />;
@@ -226,13 +206,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Full‑width Interactive Avatar (obfuscated embed) */}
-      <section className="py-6 md:py-10 px-0">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative w-full aspect-video bg-black">
-            <div id="virtual-guard-embed" className="absolute inset-0 w-full h-full border-0" />
-          </div>
-        </div>
+      {/* Full-screen Avatar Section */}
+      <section className="relative bg-black min-h-screen w-full flex items-stretch" id="avatar-section">
+        <div id="virtual-guard-embed" className="relative flex-1 w-full h-full" />
       </section>
 
       {/* In Action */}
