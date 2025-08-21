@@ -1,10 +1,10 @@
 import './App.css';
-import LandingPage from './LandingPage';
+import KabamWelcomeExperience from './KabamWelcomeExperience';
 
 function App() {
   return (
     <div className="App">
-  <LandingPage />
+  <KabamWelcomeExperience />
     </div>
   );
 }
