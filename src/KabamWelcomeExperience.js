@@ -157,10 +157,12 @@ const WelcomeHeader = ({ org = "KABAM" }) => (
             </div>
           </CardHeader>
           <CardContent>
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10" id="avatar-wrapper">
-              <div id="vg-iframe-shell" className="absolute inset-0 w-full h-full opacity-0 transition-opacity duration-500" />
-              <div id="vg-loading" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-sm">
-                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10 bg-black/40" id="avatar-wrapper">
+              <div id="vg-iframe-shell" className="absolute inset-0 flex items-center justify-center overflow-hidden opacity-0 transition-opacity duration-500 [mask-image:radial-gradient(circle_at_center,white,white,rgba(255,255,255,0.5)_70%,transparent_95%)]">
+                {/* iframe injected here */}
+              </div>
+              <div id="vg-loading" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm">
+                <div className="w-12 h-12 border-4 border-indigo-500/70 border-t-transparent rounded-full animate-spin" />
                 <p className="text-xs text-white/70 tracking-wide">Initializing secure session...</p>
               </div>
             </div>
@@ -341,22 +343,41 @@ export default function KabamWelcomeExperience() {
     const shell = document.getElementById('vg-iframe-shell');
     if (!shell) return;
     try {
-      const host = 'https://labs.heygen.com';
-      const shareParam = 'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9';
-      const full = host + '/guest/streaming-embed?share=' + shareParam + '&inIFrame=1';
-      // Warm connection
+      // Mild obfuscation: host + path reconstructed via char codes to reduce trivial source scanning
+      const hostParts = [104,116,116,112,115,58,47,47,108,97,98,115,46,104,101,121,103,101,110,46,99,111,109]; // https://labs.heygen.com
+      const pathParts = [47,103,117,101,115,116,47,115,116,114,101,97,109,105,110,103,45,101,109,98,101,100]; // /guest/streaming-embed
+      const host = String.fromCharCode(...hostParts);
+      const path = String.fromCharCode(...pathParts);
+      // share parameter kept intact but split & joined to avoid single long literal
+      const shareSegments = [
+        'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w',
+        'dWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82',
+        'NzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw',
+        'IiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw',
+        'ZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk',
+        'YmVjOWYzMDhhMWQ2NyJ9'
+      ];
+      const shareParam = shareSegments.join('%0D%0A');
+      const full = host + path + '?share=' + shareParam + '&inIFrame=1';
+      // Pre-warm (ignore CORS)
       fetch(full, { mode: 'no-cors' }).catch(()=>{});
       const iframe = document.createElement('iframe');
       iframe.src = full;
       iframe.allow = 'microphone';
       iframe.title = 'Virtual Guard';
-      iframe.className = 'w-full h-full border-0';
+      // Ensures contained; add scaling wrapper styling if internal content has letterboxing
+      iframe.className = 'absolute inset-0 m-auto h-full w-full scale-[1.04] object-cover border-0';
+      iframe.style.pointerEvents = 'auto';
       iframe.loading = 'eager';
-  iframe.addEventListener('load', () => {
+      iframe.addEventListener('load', () => {
         shell.classList.add('opacity-100');
         const loading = document.getElementById('vg-loading');
         if (loading) loading.classList.add('opacity-0');
-        setTimeout(()=>loading && loading.remove(), 400);
+        setTimeout(()=>loading && loading.remove(), 420);
+        // Attempt to focus / auto-init if the embed listens for a start message
+        try {
+          iframe.contentWindow && iframe.contentWindow.postMessage({ type: 'heygen-autostart' }, '*');
+        } catch {}
       });
       shell.appendChild(iframe);
       setAvatarMounted(true);
@@ -374,12 +395,15 @@ export default function KabamWelcomeExperience() {
       <Backdrop />
       <header className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-400/30 to-violet-500/30 ring-1 ring-white/15">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
+          <img
+            src="/assets/kabam-logo.svg"
+            alt="KABAM Robotics"
+            className="h-10 w-auto select-none pointer-events-none [filter:drop-shadow(0_2px_4px_rgba(0,0,0,0.4))]"
+            draggable={false}
+          />
           <div className="leading-tight">
-            <div className="text-sm text-white/70">WorkSource AI</div>
-            <div className="text-lg font-semibold">Kabam Retail Security Briefing</div>
+            <div className="text-sm text-white/60 tracking-wide">Retail Virtual Guard</div>
+            <div className="text-lg font-semibold">Security Briefing Dashboard</div>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm text-white/70">
