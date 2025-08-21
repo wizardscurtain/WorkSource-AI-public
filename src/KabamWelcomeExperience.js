@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   ShieldCheck,
   Camera,
   PhoneCall,
   Bot,
   Activity,
-  MapPin,
   Clock4,
   ChevronRight,
   AlertTriangle,
@@ -25,7 +24,19 @@ import {
   ShieldAlert,
   Sliders,
   Zap,
+  Maximize2,
+  X,
 } from "lucide-react";
+
+// --- Theme system added
+const THEMES = {
+  kabam: {
+    baseFrom: "rgba(72,78,255,0.35)",
+    baseTo: "rgba(8,10,24,1)",
+    ribbon1: ["rgba(251,191,36,0.22)", "rgba(99,102,241,0.20)", "rgba(34,211,238,0.18)"],
+    ribbon2: ["rgba(124,58,237,0.25)", "rgba(56,189,248,0.18)", "rgba(16,185,129,0.18)"],
+  },
+};
 
 // --- Helper components (enhanced styling / motion hover washes) ---
 const Card = ({ className = "", children }) => (
@@ -160,12 +171,12 @@ function Legend() {
   );
 }
 
-function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true, showPatrols = true, showQueues = false }) {
+function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true, showPatrols = true, showQueues = false, onHover }) {
   const patrolD = zones.patrolPath?.length
     ? `M ${zones.patrolPath[0].x} ${zones.patrolPath[0].y} ` + zones.patrolPath.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
     : null;
   return (
-    <svg viewBox="0 0 1000 600" className="h-full w-full">
+  <svg viewBox="0 0 1000 600" className="h-full w-full" onMouseLeave={()=>onHover && onHover(null)}>
       <defs>
         <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="rgba(99,102,241,0.15)" />
@@ -196,10 +207,10 @@ function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true
         </g>
       ))}
       {zones.aisles.map((a, i) => (
-        <rect key={i} x={a.x} y={a.y} width={a.w} height={a.h} fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.3)" />
+        <rect key={i} x={a.x} y={a.y} width={a.w} height={a.h} fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.3)" onMouseEnter={()=>onHover && onHover({x:a.x+a.w/2,y:a.y+a.h/2,label:`Aisle ${i+1}`})} />
       ))}
       {zones.checkout.map((c, i) => (
-        <g key={i}>
+        <g key={i} onMouseEnter={()=>onHover && onHover({x:c.x+c.w/2,y:c.y,label:c.label})} onMouseLeave={()=>onHover && onHover(null)}>
           <rect x={c.x} y={c.y} width={c.w} height={c.h} fill="rgba(34,197,94,0.25)" stroke="rgba(34,197,94,0.6)" />
           <text x={c.x + 6} y={c.y - 6} fill="#fff" fontSize={11}>{c.label}</text>
           {showQueues && <rect x={c.x} y={c.y - 38} width={c.w} height={6} fill="rgba(234,179,8,0.45)" />}
@@ -210,7 +221,7 @@ function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true
       <rect x={zones.entrance.x} y={zones.entrance.y} width={zones.entrance.w} height={zones.entrance.h} fill="rgba(59,130,246,0.25)" stroke="rgba(59,130,246,0.6)" />
       <text x={zones.entrance.x + 8} y={zones.entrance.y - 6} fill="#fff" fontSize={12}>{zones.entrance.label}</text>
       {showFOV && zones.cameras.map((c, i) => (
-        <g key={i}>
+        <g key={i} onMouseEnter={()=>onHover && onHover({x:c.x,y:c.y,label:`Camera ${c.label}`})} onMouseLeave={()=>onHover && onHover(null)}>
           <path d={polarToPath(c.x, c.y, c.r, c.a0, c.a1)} fill="rgba(99,102,241,0.35)" stroke="rgba(180,188,255,0.6)" />
           <circle cx={c.x} cy={c.y} r={4} fill="#c7d2fe" />
           <text x={c.x + 8} y={c.y - 8} fill="#c7d2fe" fontSize={11}>{c.label}</text>
@@ -220,7 +231,7 @@ function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true
         <path d={patrolD} stroke="rgba(34,197,94,0.8)" strokeDasharray="6 6" fill="none" />
       )}
       {showAlerts && zones.alerts.map((a, i) => (
-        <g key={i}>
+        <g key={i} onMouseEnter={()=>onHover && onHover({x:a.x,y:a.y,label:a.text})} onMouseLeave={()=>onHover && onHover(null)}>
           <circle cx={a.x} cy={a.y} r={12} fill={`url(#alert${a.level === "high" ? "High" : a.level === "med" ? "Med" : "Low"})`} filter="url(#soft)" />
           <circle cx={a.x} cy={a.y} r={4} fill="#fff" />
           <text x={a.x + 10} y={a.y + 4} fill="#fff" fontSize={11}>{a.text}</text>
@@ -231,34 +242,42 @@ function StoreMap({ zones = defaultStoreZones, showFOV = true, showAlerts = true
   );
 }
 
-function CoveragePanel() {
+// CoveragePanel with fullscreen + internal overlay state + tooltips
+const CoveragePanel = () => {
   const [overlays, setOverlays] = useState({ fov: true, alerts: true, patrols: true, queues: false });
-  const toggle = (k) => setOverlays((s) => ({ ...s, [k]: !s[k] }));
+  const toggle = (k) => setOverlays(o => ({ ...o, [k]: !o[k] }));
+  const [fullscreen, setFullscreen] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState(null);
+  useEffect(()=>{ if(!fullscreen) return; const h=e=>{ if(e.key==='Escape') setFullscreen(false);}; window.addEventListener('keydown',h); return()=>window.removeEventListener('keydown',h);},[fullscreen]);
+  const containerClasses = `relative flex flex-col rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm ${fullscreen? 'fixed inset-4 z-50 p-4 shadow-2xl bg-gray-950/85':''}`;
   return (
-    <Card className="lg:col-span-2">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <MapPin className="h-5 w-5" />
-            <div className="font-medium">Retail Floor Coverage</div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <TogglePill active={overlays.fov} onClick={() => toggle('fov')}><Camera className="h-3.5 w-3.5" /> FOV</TogglePill>
-            <TogglePill active={overlays.alerts} onClick={() => toggle('alerts')}><ShieldAlert className="h-3.5 w-3.5" /> Alerts</TogglePill>
-            <TogglePill active={overlays.patrols} onClick={() => toggle('patrols')}><PersonStanding className="h-3.5 w-3.5" /> Patrol</TogglePill>
-            <TogglePill active={overlays.queues} onClick={() => toggle('queues')}><ShoppingCart className="h-3.5 w-3.5" /> Queues</TogglePill>
-            <Pill>Auto-Redaction Enabled</Pill>
-          </div>
+    <div className={containerClasses}>
+      <div className="flex items-center justify-between px-4 pt-3">
+        <h3 className="text-sm font-medium tracking-wide text-white/80">Store Coverage Map</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={()=>setFullscreen(f=>!f)} className="group rounded-md p-1.5 text-white/60 hover:text-white hover:bg-white/10 transition" aria-label={fullscreen? 'Exit fullscreen':'Enter fullscreen'}>
+            {fullscreen ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-white/10">
-          <StoreMap showFOV={overlays.fov} showAlerts={overlays.alerts} showPatrols={overlays.patrols} showQueues={overlays.queues} />
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="px-4 pb-2"><p className="text-[11px] text-white/60 leading-relaxed">Visualize AI camera fields of view, live alerts, patrol paths, and queue analytics.</p></div>
+      <div className={`relative ${fullscreen? 'flex-1':'h-64'}`}>
+        <StoreMap showFOV={overlays.fov} showAlerts={overlays.alerts} showPatrols={overlays.patrols} showQueues={overlays.queues} onHover={setHoverInfo} />
+        {hoverInfo && (
+          <div className="pointer-events-none absolute rounded-md bg-gray-900/90 px-2 py-1 text-[10px] text-white/80 shadow-xl ring-1 ring-white/10" style={{ left: hoverInfo.x + 8, top: hoverInfo.y + 8 }}>
+            {hoverInfo.label}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 p-3 pt-4 border-t border-white/5 mt-2">
+        <TogglePill active={overlays.fov} onClick={()=>toggle('fov')}>FOV</TogglePill>
+        <TogglePill active={overlays.alerts} onClick={()=>toggle('alerts')}>Alerts</TogglePill>
+        <TogglePill active={overlays.patrols} onClick={()=>toggle('patrols')}>Patrol</TogglePill>
+        <TogglePill active={overlays.queues} onClick={()=>toggle('queues')}>Queues</TogglePill>
+      </div>
+    </div>
   );
-}
+};
 
 // Expanded, interactive panel version
 function HowItWorksPanel() {
@@ -440,25 +459,29 @@ const QuickAction = ({ icon: Icon, title, subtitle }) => (
 );
 
 // --- Enhanced animated background (aurora + texture) ---
-const Backdrop = () => (
-  <div className="absolute inset-0 -z-10 overflow-hidden">
-    <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,rgba(72,78,255,0.35),rgba(8,10,24,1))]" />
-    <svg className="absolute inset-0 h-full w-full opacity-20" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-          <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid)" />
-    </svg>
-    <motion.div initial={{ opacity: 0.6, x: -120, y: -40 }} animate={{ opacity: 0.9, x: -20, y: 0 }} transition={{ duration: 2.2, ease: "easeOut" }} className="absolute -top-40 -left-40 h-96 w-[36rem] rotate-6 rounded-full bg-gradient-to-tr from-fuchsia-400/25 via-indigo-400/20 to-cyan-300/20 blur-3xl" />
-    <motion.div initial={{ opacity: 0.4, x: 120, y: 40 }} animate={{ opacity: 0.75, x: 40, y: 0 }} transition={{ duration: 2.2, ease: "easeOut", delay: 0.2 }} className="absolute -bottom-40 -right-40 h-96 w-[36rem] -rotate-6 rounded-full bg-gradient-to-tr from-emerald-400/25 via-sky-400/20 to-violet-300/20 blur-3xl" />
-    <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12] mix-blend-soft-light" xmlns="http://www.w3.org/2000/svg">
-      <filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch" /></filter>
-      <rect width="100%" height="100%" filter="url(#noiseFilter)" />
-    </svg>
-  </div>
-);
+const Backdrop = ({ theme='kabam' }) => {
+  const t = THEMES[theme] || THEMES.kabam;
+  const prefersReducedMotion = useReducedMotion();
+  return (
+    <div className="absolute inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0" style={{ background: `radial-gradient(80% 60% at 50% 0%, ${t.baseFrom}, ${t.baseTo})` }} />
+      <motion.svg className="absolute inset-0 h-full w-full opacity-20" xmlns="http://www.w3.org/2000/svg" animate={prefersReducedMotion?{}:{ x:[0,16,0], y:[0,16,0]}} transition={{ duration:30, repeat:Infinity, ease:'linear' }}>
+        <defs>
+          <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </motion.svg>
+      <motion.div initial={{ opacity: 0.6, x: -120, y: -40 }} animate={prefersReducedMotion?{opacity:0.8}:{ opacity: 0.9, x: -20, y: 0 }} transition={{ duration:2.2, ease:'easeOut' }} className="absolute -top-40 -left-40 h-96 w-[36rem] rotate-6 rounded-full blur-3xl" style={{ background: `linear-gradient(45deg, ${t.ribbon1[0]}, ${t.ribbon1[1]}, ${t.ribbon1[2]})` }} />
+      <motion.div initial={{ opacity: 0.4, x: 120, y: 40 }} animate={prefersReducedMotion?{opacity:0.7}:{ opacity: 0.75, x: 40, y: 0 }} transition={{ duration:2.2, ease:'easeOut', delay:0.2 }} className="absolute -bottom-40 -right-40 h-96 w-[36rem] -rotate-6 rounded-full blur-3xl" style={{ background: `linear-gradient(45deg, ${t.ribbon2[0]}, ${t.ribbon2[1]}, ${t.ribbon2[2]})` }} />
+      <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12] mix-blend-soft-light" xmlns="http://www.w3.org/2000/svg">
+        <filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch" /></filter>
+        <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+      </svg>
+    </div>
+  );
+};
 
 // --- Hero / Welcome ---
 const WelcomeHeader = ({ org = "KABAM" }) => (
@@ -550,8 +573,8 @@ const KPIRow = () => (
 const MainGrid = () => (
   <div className="mx-auto mt-6 max-w-7xl px-6">
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Enhanced coverage panel with interactive overlays */}
-      <CoveragePanel />
+  {/* Enhanced coverage panel with interactive overlays */}
+  <CoveragePanel />
       {/* Incident feed */}
       <Card>
         <CardHeader>
