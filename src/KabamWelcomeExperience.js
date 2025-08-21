@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck,
@@ -157,13 +157,11 @@ const WelcomeHeader = ({ org = "KABAM" }) => (
             </div>
           </CardHeader>
           <CardContent>
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
-              <div className="flex h-full w-full items-center justify-center bg-black/40">
-                <div className="text-center">
-                  <div className="text-lg font-medium">Avatar feed placeholder</div>
-                  <div className="text-xs text-white/70">Embed your internal player here (no vendor references)</div>
-                </div>
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10" id="avatar-wrapper">
+              <div id="vg-iframe-shell" className="absolute inset-0 w-full h-full opacity-0 transition-opacity duration-500" />
+              <div id="vg-loading" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-sm">
+                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-white/70 tracking-wide">Initializing secure session...</p>
               </div>
             </div>
           </CardContent>
@@ -336,6 +334,41 @@ function DevTests() {
 
 // --- Root ---
 export default function KabamWelcomeExperience() {
+  const [avatarMounted, setAvatarMounted] = useState(false);
+
+  const mountAvatar = useCallback(() => {
+    if (avatarMounted) return;
+    const shell = document.getElementById('vg-iframe-shell');
+    if (!shell) return;
+    try {
+      const host = 'https://labs.heygen.com';
+      const shareParam = 'eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJBbWluYV9Qcm9mZXNzaW9uYWxMb29rMl9w%0D%0AdWJsaWMiLCJwcmV2aWV3SW1nIjoiaHR0cHM6Ly9maWxlczIuaGV5Z2VuLmFpL2F2YXRhci92My82%0D%0ANzA1Yjc5ZjY0N2E0Njk5YjkxZjcyMmIyNjQyNGZjOV81NTc3MC9wcmV2aWV3X3RhbGtfMS53ZWJw%0D%0AIiwibmVlZFJlbW92ZUJhY2tncm91bmQiOnRydWUsImtub3dsZWRnZUJhc2VJZCI6IjAzODY4N2Mw%0D%0AZjdjYjQ3ZjRiY2Q0MTAwYWUwNjVhOGM5IiwidXNlcm5hbWUiOiJiMWNjYzY0NGNiMjg0NTRhOGZk%0D%0AYmVjOWYzMDhhMWQ2NyJ9';
+      const full = host + '/guest/streaming-embed?share=' + shareParam + '&inIFrame=1';
+      // Warm connection
+      fetch(full, { mode: 'no-cors' }).catch(()=>{});
+      const iframe = document.createElement('iframe');
+      iframe.src = full;
+      iframe.allow = 'microphone';
+      iframe.title = 'Virtual Guard';
+      iframe.className = 'w-full h-full border-0';
+      iframe.loading = 'eager';
+  iframe.addEventListener('load', () => {
+        shell.classList.add('opacity-100');
+        const loading = document.getElementById('vg-loading');
+        if (loading) loading.classList.add('opacity-0');
+        setTimeout(()=>loading && loading.remove(), 400);
+      });
+      shell.appendChild(iframe);
+      setAvatarMounted(true);
+    } catch (e) {
+      console.warn('Avatar mount failed', e);
+    }
+  }, [avatarMounted]);
+
+  useEffect(() => {
+    mountAvatar();
+  }, [mountAvatar]);
+
   return (
     <div className="min-h-screen w-full bg-neutral-950 font-[Inter,ui-sans-serif,system-ui] text-white">
       <Backdrop />
